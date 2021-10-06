@@ -30,7 +30,7 @@ class Rocket:
         self.is_exploded = False
         self.is_active = True
         self.time_since_explosion = 0
-        self.sound.play()
+        # self.sound.play()
 
     def _move(self):
         self.rect.y -= self.movement_speed
@@ -106,12 +106,12 @@ class Spaceship:
         if self.rocket.is_active:
             self.rocket.draw(surface)
 
-    def update(self, dt, events):
+    def update(self, dt, events, aliens):
         self._perform_user_input(events)
 
         if not self.is_destroyed:
             self._update_rocket(dt)
-            self._fire()
+            self._fire(aliens)
 
         else:
             self.delay_since_explosion += dt
@@ -119,7 +119,7 @@ class Spaceship:
                     Config.SPACESHIP_EXPLOSION_DURATION_MS:
                 self._reset()
 
-    def _perform_user_input(self, events):
+    def _perform_user_input(self, events, ):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
             if self.rect.left < 0:
@@ -142,13 +142,13 @@ class Spaceship:
                 if event.key == pygame.K_SPACE:
                     self.is_firing = False
 
-    def _fire(self):
+    def _fire(self, aliens):
         if not self.is_firing:
             return
 
         if self.rocket.is_active:
             return
-
+        aliens.reset_dodge_ability()
         self._shoot_rocket()
 
     def _shoot_rocket(self):
@@ -245,10 +245,11 @@ class Laser:
 class Alien:
 
     def __init__(self, type_, top_left_pos):
+        self.can_dodge = None
         self.last_sprite_shift_delay = 0
         self.type = type_
         self.sprites = [
-            pygame.image.load(os.path.join(Config.SPRITES_DIR, s))
+            pygame.transform.scale(pygame.image.load(os.path.join(Config.SPRITES_DIR, s)), (20, 20))
             for s in Config.ALIEN_SPRITE_NAMES[self.type - 1]]
         self.explosion_sprite = pygame.image.load(
             os.path.join(Config.SPRITES_DIR,
@@ -283,6 +284,64 @@ class Alien:
             self.sprite_index += 1
             self.sprite_index %= len(self.sprites)
             self.last_sprite_shift_delay -= self.shift_sprite_period
+
+    def try_dodge(self, grid):
+        if not self.can_dodge:
+            return
+
+        r = self.rect
+        alien_rect_width = 5
+        tl, tr, bl, br = r.topleft, r.topright, \
+                         r.bottomleft, r.bottomright
+
+        coords_pairs = [(int(x / zoom), int(y / zoom))
+                        for x in range(tl[0], tr[0])
+                        for y in range(tl[1], bl[1])
+                        ]
+
+        def can_jump(direction='right'):
+            can = True
+            sub = 1 if direction == 'right' else -1
+            for x, y in coords_pairs:
+                x2, y2 = x + alien_rect_width * sub, y + alien_rect_width * sub
+                if x2 > (len(grid) - 1) or x2 <= 0 or \
+                        y2 > (len(grid[len(grid) - 1]) - 1) or \
+                        y2 <= 0:
+                    can = False
+                    break
+
+                if grid[x2][y2] in [2, 4]:
+                    can = False
+                    break
+
+
+            return can
+
+        choices = []
+        if can_jump(direction='right'):
+            choices.append('r')
+        if can_jump(direction='left'):
+            choices.append('l')
+
+        if not choices:
+            return
+
+        d = random.choice(choices)
+
+        diff = 1 * alien_rect_width if d == 'r' else -1 * alien_rect_width
+
+        cx, cy = self.rect.center
+
+        self.rect.center = (cx + diff * 4, cy)
+
+        self.can_dodge = False
+        # check it's possible to jump left
+
+
+
+
+        # check it's possible to jump right
+
 
     def draw(self, window_surface):
         if self.is_exploded:
@@ -380,6 +439,9 @@ class Aliens:
         movement = self._get_alien_movement(dt)
         for alien in self.alien_list:
             alien.update(dt, movement)
+    def reset_dodge_ability(self):
+        for alien in self.alien_list:
+            alien.can_dodge = True
 
     def _update_ufo(self, dt):
         self.ufo.update(dt)
@@ -615,19 +677,16 @@ class UFO:
 
 class Asteroids:
     def __init__(self):
-        self.sprite = pygame.transform.scale(pygame.image.load(
-            os.path.join(Config.SPRITES_DIR, Config.ASTEROID_SPRITE_FNAME)),
-                                             (15, 15))
         self.asteroids = self.generate_asteroids()
 
     def generate_asteroids(self):
         xmin, ymin, xmax, ymax = 20, 240, Config.WINDOW_SIZE[0] - 20, 290
         container = []
 
-        while len(container) < 8:
+        while len(container) < 5:
             sprite = pygame.transform.scale(pygame.image.load(
                 os.path.join(Config.SPRITES_DIR, Config.ASTEROID_SPRITE_FNAME)),
-                (40, 40))
+                (50, 50))
             x, y = random.choice(range(xmin, xmax)), \
                    random.choice(range(ymin, ymax))
             rect = sprite.get_rect(center=(x, y))

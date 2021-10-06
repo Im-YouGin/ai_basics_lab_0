@@ -41,7 +41,7 @@ class Config:
     EXPLOSION_DURATION_MS = 250
     ROCKET_EXPLOSION_SPRITE_FNAME = 'rocket_explosion.png'
     ROCKET_SPRITE = 'rocket3.png'
-    MISSILE_RECT_DIM = (14, 14)
+    MISSILE_RECT_DIM = (14, 7)
     WINDOW_SIZE = (400, 400)
     WORLD_DIM = (400, 375)
 

@@ -1,6 +1,6 @@
 import random
 import numpy as np
-
+import pygame.locals
 import pygame
 import os
 import sys
@@ -9,7 +9,7 @@ from algorithms import *
 from itertools import cycle
 from config import *
 from game_objets import *
-
+from test import astar
 
 pygame.display.set_caption("Space Invaders")
 
@@ -40,7 +40,7 @@ class SpaceInvaders:
         clock = pygame.time.Clock()
 
         while True:
-            dt = clock.tick(45)
+            dt = clock.tick(30)
             # --- Main event loop
 
 
@@ -68,50 +68,147 @@ class SpaceInvaders:
             self.score.draw(self.window_surface)
             self.lives.draw(self.window_surface)
             self.best_score.draw(self.window_surface)
-            self.asteroids.draw(self.window_surface)
+            # self.asteroids.draw(self.window_surface)
 
             pygame.draw.line(self.window_surface, (255, 255, 255), (0, Config.WINDOW_SIZE[1] * 0.9),
                              (Config.WINDOW_SIZE[0], Config.WINDOW_SIZE[1] * 0.9))
 
-            if self.curr_algo is not None:
-                func = {
-                    'bfs': bfs,
-                    'dfs': dfs,
-                    'ucs': ucs
-                }.get(self.curr_algo)
-                matrix = np.ones(shape=(int(Config.SPACESHIP_STARTING_POSITION[1] / zoom) + 1,
-                                        int(Config.WORLD_DIM[0] / zoom) + 1))
+            # if self.curr_algo is not None:
+            #     func = {
+            #         'bfs': bfs,
+            #         'dfs': dfs,
+            #         'ucs': ucs
+            #     }.get(self.curr_algo)
 
-                ship_x, ship_y = self.spaceship.rect.center
-                matrix[int(ship_y / zoom) - 1][int(ship_x / zoom) - 1] = -1
+            matrix = np.ones(shape=(int(Config.SPACESHIP_STARTING_POSITION[1] / zoom) + 1,
+                                    int(Config.WORLD_DIM[0] / zoom) + 1))
 
+            ship_x, ship_y = self.spaceship.rect.center
+            matrix[int(ship_y / zoom) - 1][int(ship_x / zoom) - 1] = 9
+
+            for alien in self.aliens.alien_list:
+                tl, tr, bl, br = alien.rect.topleft, alien.rect.topright, \
+                                 alien.rect.bottomleft, alien.rect.bottomright
+                for rx in range(tl[0], tr[0]):
+                    for ry in range(tl[1], bl[1]):
+                        matrix[int(ry / zoom) - 1][int(rx / zoom) - 1] = 2
+
+            # for ast, rect in self.asteroids.asteroids:
+            #     if ast is None:
+            #         continue
+            #
+            #     tl, tr, bl, br = rect.topleft, rect.topright, \
+            #                      rect.bottomleft, rect.bottomright
+            #
+            #     for rx in range(tl[0], tr[0]):
+            #         for ry in range(tl[1], bl[1]):
+            #             # if matrix[int(ry / zoom)][int(rx / zoom)] == 1:
+            #             matrix[int(ry / zoom)][int(rx / zoom)] = 3
+
+            if self.spaceship.rocket.is_active:
+                rect = self.spaceship.rocket.rect
+                tl, tr, bl, br = rect.topleft, rect.topright, \
+                                 rect.bottomleft, rect.bottomright
+
+                for rx in range(tl[0], tr[0]):
+                    for ry in range(tl[1], bl[1]):
+                        matrix[int(ry / zoom)][int(rx / zoom)] = 4
+
+            for alien in self.aliens.alien_list:
+                if not alien.laser.is_active:
+                    continue
+
+                rect = alien.laser.rect
+                tl, tr, bl, br = rect.topleft, rect.topright, \
+                                 rect.bottomleft, rect.bottomright
+
+                for rx in range(tl[0], tr[0]):
+                    for ry in range(tl[1], bl[1]):
+                        try:
+                            # if matrix[int(ry / zoom)][int(rx / zoom)] == 1:
+                            matrix[int(ry / zoom)][int(rx / zoom)] = 5
+                        except IndexError:
+                            pass
+
+
+            # for alien in self.aliens.alien_list:
+            #     test_x, test_y = alien.rect.center
+            #     points = func(matrix, (int(test_x / zoom) - 1,
+            #                           int(test_y / zoom) - 1))
+            #     points = [(x * zoom, y * zoom) for x, y in points]
+            #     # color =
+            #     pygame.draw.lines(
+            #         self.window_surface, (random.choice(range(256)), random.choice(range(256)), random.choice(range(256))), False, points)
+            #
+
+            if self.spaceship.rocket.is_active:
+
+
+                roc_cent_x, roc_cent_y = self.spaceship.rocket.rect.center
+                paths = []
                 for alien in self.aliens.alien_list:
-                    tl, tr, bl, br = alien.rect.topleft, alien.rect.topright, \
-                                     alien.rect.bottomleft, alien.rect.bottomright
-                    for rx in range(tl[0], tr[0]):
-                        for ry in range(tl[1], bl[1]):
-                            matrix[int(ry / zoom)][int(rx / zoom)] = 2
-
-                for ast, rect in self.asteroids.asteroids:
-                    if ast is None:
-                        continue
-
-                    tl, tr, bl, br = rect.topleft, rect.topright, \
-                                     rect.bottomleft, rect.bottomright
-
-                    for rx in range(tl[0], tr[0]):
-                        for ry in range(tl[1], bl[1]):
-
-                            matrix[int(ry / zoom)][int(rx / zoom)] = 3
-
-                for alien in self.aliens.alien_list[:]:
                     test_x, test_y = alien.rect.center
-                    points = func(matrix, (int(test_x / zoom) - 1,
-                                          int(test_y / zoom) - 1))
-                    points = [(x * zoom, y * zoom) for x, y in points]
-                    # color =
-                    pygame.draw.lines(
-                        self.window_surface, (random.choice(range(256)), random.choice(range(256)), random.choice(range(256))), False, points)
+                    path = bfs(matrix,
+                                     (int(test_y / zoom) - 1,
+                                      int(test_x / zoom) - 1),
+                                     (int(roc_cent_y / zoom) - 1,
+                                      int(roc_cent_x / zoom) - 1),
+                                     )
+                    if path is None:
+                        continue
+                    points = [(y * zoom, x * zoom) for x, y in path]
+                    paths.append([points, alien])
+
+                if paths:
+                    sh_path, alien_obj = min(paths, key=lambda x: len(x[0]))
+
+                    # pygame.draw.lines(
+                    # self.window_surface, (random.choice(range(256)), random.choice(range(256)), random.choice(range(256))), False, sh_path)
+
+                    alien_pos = sh_path[0]
+                    path_len = len(sh_path)
+
+                    if path_len < 10 and random.random() > .5:
+                        alien_obj.try_dodge(matrix)
+
+
+            paths = []
+            for alien in self.aliens.alien_list:
+                test_x, test_y = alien.rect.center
+
+                points, dist = astar(matrix, (int(test_y / zoom) - 1,
+                                      int(test_x / zoom) - 1),
+                                      (int(ship_y / zoom) - 1,
+                                       int(ship_x / zoom) - 1
+                                       ))
+                # print(points, dist)
+                # print(dist)
+                if points is None:
+                    # print(matrix.shape)
+                    # print(test_x, test_y)
+                    # print((int(test_x / zoom) - 1,
+                    #        int(test_y / zoom) - 1))
+                    continue
+                paths.append([(test_x, test_y), dist])
+                points = [(y * zoom, x * zoom) for x, y in points]
+                paths.append([points, dist])
+                # pygame.draw.lines(
+                # self.window_surface, (random.choice(range(256)), random.choice(range(256)), random.choice(range(256))), False, points)
+            if paths:
+                (min_x, min_y), d = min(paths, key=lambda x: x[1])
+
+                pygame.draw.circle(self.window_surface, (223, 111, 211), (min_x, min_y), 5)
+
+                if min_x > ship_x:
+                    self.spaceship.rect.x += 4
+                elif min_x < ship_x:
+                    self.spaceship.rect.x -= 4
+                else:
+                    self.spaceship.is_firing = True
+                    self.spaceship._fire(self.aliens)
+
+
+
 
             if self.game_over:
                 self.best_score.value = \
@@ -127,7 +224,7 @@ class SpaceInvaders:
 
     def _update(self, dt):
         events = self._get_events()
-        self.spaceship.update(dt, events)
+        self.spaceship.update(dt, events, self.aliens)
         self.aliens.update(dt)
 
         for event in events:
@@ -137,7 +234,9 @@ class SpaceInvaders:
 
     def _get_events(self):
         events = []
+
         for event in pygame.event.get():
+            # print(event)
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
@@ -146,13 +245,14 @@ class SpaceInvaders:
         return events
     
     def _collide(self):
+        # self._collide_laser_and_asteroid()
         self._collide_rocket_and_aliens()
         self._collide_laser_and_spaceship()
         self._collide_laser_and_rocket()
         self._collide_ufo_and_rocket()
         self._collide_aliens_and_spaceship()
-        self._collide_rocket_and_asteroid()
-        self._collide_laser_and_asteroid()
+        # self._collide_rocket_and_asteroid()
+
 
     def _collide_rocket_and_aliens(self):
         if not self.spaceship.rocket.is_active:
@@ -166,7 +266,7 @@ class SpaceInvaders:
             if missile_rect.colliderect(alien.rect):
                 # if collision, make the alien explode and remove missile
                 alien.explode()
-                if len(self.aliens.alien_list) < 54 and \
+                if len(self.aliens.alien_list) < 5 and \
                         not self.aliens.ufo.is_active:
                     self.aliens.ufo.launch()
 
