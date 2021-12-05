@@ -5,6 +5,7 @@ import random
 class Node:
     def __init__(self, game):
         self.game = game
+        self.score = 0
 
     def get_children(self, max_player, rand_behavior=False):
         children = []
