@@ -5,16 +5,18 @@ from scipy.spatial.distance import euclidean
 from algorithms import minimax
 
 
-MOVE_LEFT_ACTION = 'ml'
-MOVE_RIGHT_ACTION = 'mr'
-SHOOT_ACTION = 'sh'
-PLAYER_SPEED = 10
+MOVE_LEFT_ACTION = 0
+MOVE_RIGHT_ACTION = 1
+SHOOT_ACTION = 2
+PLAYER_SPEED = 2
+PLAYER_LASER_SPEED = -8
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, constraint):
         super().__init__()
-        self.image = pygame.image.load('../graphics/player.png').convert_alpha()
+        self.image = pygame.image.load(
+            '../graphics/player.png').convert_alpha()
         self.rect = self.image.get_rect(midbottom=pos)
         self.speed = PLAYER_SPEED
         self.max_x_constraint = constraint
@@ -36,9 +38,10 @@ class Player(pygame.sprite.Sprite):
             self.fire()
 
     def fire(self):
-        self.shoot_laser()
-        self.ready = False
-        self.laser_time = pygame.time.get_ticks()
+        if self.ready:
+            self.shoot_laser()
+            self.ready = False
+            self.laser_time = pygame.time.get_ticks()
 
     def recharge(self):
         if not self.ready:
@@ -53,10 +56,10 @@ class Player(pygame.sprite.Sprite):
             self.rect.right = self.max_x_constraint
 
     def shoot_laser(self):
-        self.lasers.add(Laser(self.rect.center, -20, self.rect.bottom))
+        self.lasers.add(Laser(self.rect.center, PLAYER_LASER_SPEED, self.rect.bottom))
 
     def update(self):
-        # self.get_input()
+        self.get_input()
         self.constraint()
         self.recharge()
         self.lasers.update()

@@ -57,39 +57,39 @@ class Alien(pygame.sprite.Sprite):
 
     def get_available_actions(self, player_lasers, all_aliens, max_x):
         actions = [WALK_ACTION]
-        danger_dist = 35
-        orig_centerx = self.rect.centerx
-
-        if player_lasers:
-            for laser in player_lasers:
-                if euclidean(self.rect.center, laser.rect.center) < danger_dist:
-                    for sign, move in [(-1, JUMP_LEFT_ACTION),
-                                       (1, JUMP_RIGHT_ACTION)]:
-                        if random.random() > .7:
-                            continue
-                        if (sign == -1 and
-                            self.rect.left + sign * self.jump_x_delta <= 0) or \
-                           (sign == 1 and
-                            self.rect.right + sign * self.jump_x_delta >= max_x):
-                            continue
-
-                        shifted_center_coords = \
-                            (orig_centerx + sign * self.jump_x_delta,
-                             self.rect.centery)
-
-                        if not any(
-                                point_in_rect(shifted_center_coords, alien.rect)
-                                for alien in all_aliens if self is not alien):
-                            actions.append(move)
+        # danger_dist = 35
+        # orig_centerx = self.rect.centerx
+        #
+        # if player_lasers:
+        #     for laser in player_lasers:
+        #         if euclidean(self.rect.center, laser.rect.center) < danger_dist:
+        #             for sign, move in [(-1, JUMP_LEFT_ACTION),
+        #                                (1, JUMP_RIGHT_ACTION)]:
+        #                 if random.random() > .7:
+        #                     continue
+        #                 if (sign == -1 and
+        #                     self.rect.left + sign * self.jump_x_delta <= 0) or \
+        #                    (sign == 1 and
+        #                     self.rect.right + sign * self.jump_x_delta >= max_x):
+        #                     continue
+        #
+        #                 shifted_center_coords = \
+        #                     (orig_centerx + sign * self.jump_x_delta,
+        #                      self.rect.centery)
+        #
+        #                 if not any(
+        #                         point_in_rect(shifted_center_coords, alien.rect)
+        #                         for alien in all_aliens if self is not alien):
+        #                     actions.append(move)
         return actions
 
     def perform_action(self, action, direction=None):
         if action == WALK_ACTION:
             self.rect.x += direction
-        elif action == JUMP_LEFT_ACTION:
-            self.rect.centerx -= self.jump_x_delta
-        elif action == JUMP_RIGHT_ACTION:
-            self.rect.centerx += self.jump_x_delta
+        # elif action == JUMP_LEFT_ACTION:
+        #     self.rect.centerx -= self.jump_x_delta
+        # elif action == JUMP_RIGHT_ACTION:
+        #     self.rect.centerx += self.jump_x_delta
 
     def copy(self):
         return Alien(self.color, *self.rect.topleft)
